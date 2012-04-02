@@ -160,7 +160,7 @@ namespace mathparse
         {
             if (t.type == OpType.LP || t.type == OpType.RP)
             {
-                Console.WriteLine("Parenthesis mixmatch");
+                Console.WriteLine("Parenthesis mismatch");
                 return;
             }
             try
