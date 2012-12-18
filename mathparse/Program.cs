@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 
 //Math expression parser based off shunting-yard algorithm, written by alex 4/1/2012
+//revisted 12/17/12... wow, this feels like one of my more clean programs
 //TODO -- implement bitwise operations? (&, |, <<, >>, etc) (maybe repurpose ** to exponent)
 namespace mathparse
 {
@@ -22,42 +23,46 @@ namespace mathparse
     public class OpToken : Token
     {
         public OpType type;        
+        public int length = 1;
         public int precedence; //precendence of the operator (PEMDAS)
-        public bool leftasso; //is the operator left associative?
+        public bool leftasso = true; //is the operator left associative? most are, so save some lines w/ default value
         public OpToken(OpType type)
         {
             this.type = type;
             switch (type)
             {
                 case OpType.ADD:
-                    precedence = 0;
-                    leftasso = true;
+                    precedence = 0;                    
                     break;
                 case OpType.SUB:
-                    precedence = 0;
-                    leftasso = true;
+                    precedence = 0;                    
                     break;
                 case OpType.MUL:
-                    precedence = 1;
-                    leftasso = true;
+                    precedence = 1;                    
                     break;
                 case OpType.DIV:
-                    precedence = 1;
-                    leftasso = true;
+                    precedence = 1;                    
                     break;
                 case OpType.MOD:
-                    precedence = 1;
-                    leftasso = true;
+                    precedence = 1;                    
                     break;
                 case OpType.LP:
-                    precedence = -1; //these will be handled specially
+                    precedence = -999999; //these will be handled specially
                     break;
                 case OpType.RP:
-                    precedence = -1; //these wil be handled specially
+                    precedence = -999999; //these will be handled specially
                     break;
                 case OpType.EXP:
                     precedence = 2;
                     leftasso = false;
+                    break;
+                case OpType.LSHIFT:
+                    precedence = -1;
+                    length = 2;
+                    break;
+                case OpType.RSHIFT:
+                    precedence = -1;
+                    length = 2;
                     break;
             }
         }
@@ -72,13 +77,15 @@ namespace mathparse
         RP, //right parentheses ')'
         EXP, //exponent '^'
         MOD, //modulo '%'
+        LSHIFT, // bitwise left shift '<<'
+        RSHIFT, // bitwise right shift '>>'
         NONE, 
     }
     public class Program
     {     
         static void Main(string[] args)
         {
-            Console.WriteLine("Input an expression. Note that _ is the negative sign.");
+            Console.WriteLine("Input an expression. Note that _ is the negative sign. Use of >> << is rounded.");
             string exp = Console.ReadLine();            
             exp = exp.Replace(" ", ""); //strip spaces
             Stack<NumToken> nums = new Stack<NumToken>(); //number stack
@@ -90,7 +97,7 @@ namespace mathparse
                 {
                     k = getNextToken(exp, i);
                 }
-                catch (Exception )
+                catch (Exception)
                 {
                     Console.WriteLine("Error parsing token.");
                     break;
@@ -121,7 +128,8 @@ namespace mathparse
                         }
                         else
                         {
-                            //apply operator if the current token is <= in precedence than the on on the top of the stack (< if right associative)
+                            //apply operator if the current token is <= in precedence than the one on the top of the stack (< if right associative)
+                            //parenthesis must be the smallest number so no other token will cause it to be applied
                             while ((x.leftasso && x.precedence <= y.precedence) || (!x.leftasso && x.precedence < y.precedence))
                             {
                                 ops.Pop(); //pop y off, we're applying it
@@ -135,7 +143,7 @@ namespace mathparse
                             ops.Push(x);
                         }
                     }
-                    i++;
+                    i += x.length;
                 }
             }
             //unwind remaining operators
@@ -169,6 +177,7 @@ namespace mathparse
                 double op1 = nums.Pop().value;
                 switch (t.type)
                 {
+                    //last param of NumToken doesn't matter for any of them because they are not parsed from the string
                     case OpType.ADD:
                         nums.Push(new NumToken(op1 + op2, -1));
                         break;
@@ -186,6 +195,12 @@ namespace mathparse
                         break;
                     case OpType.MOD:
                         nums.Push(new NumToken(op1 % op2, -1));
+                        break;
+                    case OpType.LSHIFT:
+                        nums.Push(new NumToken((int)op1 << (int)op2, -1));
+                        break;
+                    case OpType.RSHIFT:
+                        nums.Push(new NumToken((int)op1 >> (int)op2, -1));
                         break;
                 }
             }
@@ -223,6 +238,19 @@ namespace mathparse
                 case '%':
                     guess = OpType.MOD;
                     break;
+                case '>':
+                    if (s[p + 1] == '>')
+                    {
+                        guess = OpType.RSHIFT;
+                    }
+                    break;
+                case '<':
+                    if (s[p + 1] == '<')
+                    {
+                        guess = OpType.LSHIFT;
+                    }
+                    break;
+
             }
             if (guess != OpType.NONE)
             {
